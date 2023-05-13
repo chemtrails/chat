@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block body %}
+{% if err %}
+<div class="header light-text" style="background: rgb(177, 0, 0); text-transform: uppercase; font-size:1.5em">{{ err }}
+</div>
+{% endif %}
+{% if user.is_authenticated %}
+<div>
+    <h2>
+        Hello, {{ user.name }}
+    </h2>
+</div>
+{% if users %}
+<div class="flex-ver gap-10 pad-10 rad-10 bor-5 bb w-100">
+    <div>
+        <h1>Chat with someone</h1>
+    </div>
+
+    {% for u in users %}
+    <div class="flex-hor pad-10 gap-10 bor-5 rad-10">
+        {{ u.name }}
+        <button class="btn bb pad-10 rad-10">
+            <a href="/chat/{{ u.name }}">
+                CHAT
+            </a>
+        </button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+<div>
+    <a href="/logout">Log out</a>
+</div>
+{% else %}
+<div class="flex-hor pad-10 rad-10 bor-5 bb w-100">
+    <div>
+        <h1>Log in</h1>
+        <form class="flex-ver gap-10" action="/login" method="post" enctype="multipart/form-data">
+            <input required minlength="3" class="input pad-10 bb rad-10" type="text" name="username"
+                placeholder="username">
+            <input required minlength="3" class="input pad-10 bb rad-10" type="password" name="password"
+                placeholder="password">
+            <input type="submit" value="Log in" class="btn bb pad-10 rad-10">
+        </form>
+    </div>
+    <div>
+        <h1>Register</h1>
+        <form class="flex-ver gap-10" action="/register" method="post" enctype="multipart/form-data">
+            <input required minlength="3" class="input pad-10 bb rad-10" type="text" name="username"
+                placeholder="username">
+            <input required minlength="3" class="input pad-10 bb rad-10" type="password" name="password"
+                placeholder="password">
+            <input type="submit" value="Register" class="btn bb pad-10 rad-10">
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
