@@ -1,7 +1,7 @@
 import json
 import asyncio
 
-from quart import websocket, Quart, render_template, request, redirect
+from quart import websocket, Quart, render_template, request, redirect, jsonify
 from quart_auth import AuthUser, AuthManager, current_user, login_required, login_user, logout_user, Unauthorized
 
 from tortoise import Tortoise
@@ -11,30 +11,21 @@ from xxhash import xxh32_hexdigest
 
 from broker import Broker
 from models import Message, User
+from auth import _User
 
 
-class _User(AuthUser):
-    def __init__(self, auth_id):
-        super().__init__(auth_id)
-        self.name = None
-        self.password = None
-
-    async def load_user(self):
-        user_data = await User.get_or_none(id=self.auth_id)
-        if user_data is not None:
-            self.name = user_data.name
-            self.password = user_data.password
-
-
-auth_manager = AuthManager()
-auth_manager.user_class = _User
+START_BATCH = 10
+BATCH = 2
 
 app = Quart(__name__)
-app.secret_key = "UnObMAOS2h7AAC1W7UXb_A"
-
+app.secret_key = "12344321"
+auth_manager = AuthManager()
+auth_manager.user_class = _User
+broker = Broker()
 auth_manager.init_app(app)
 
-broker = Broker()
+
+# PREPARE
 
 
 @app.before_serving
@@ -52,11 +43,17 @@ async def load():
     await current_user.load_user()
 
 
+# INDEX
+
+
 @app.route("/")
 async def index():
     err = request.args.get("error")
     users = await User.exclude(id=current_user.auth_id).limit(10)
     return await render_template("index.html", err=err, users=users, user=current_user)
+
+
+# AUTH
 
 
 @app.post("/register")
@@ -91,20 +88,69 @@ async def logout():
     return redirect("/")
 
 
+# CHAT
+
+
 @app.route("/chat/<name>")
 @login_required
 async def chat(name):
-    user = await User.filter(id=current_user.auth_id).first()
+    user = current_user.data
     to = await User.filter(name=name).first()
     messages = await Message.filter(
         (Q(recipient=user) & Q(author=to)) | (Q(recipient=to) & Q(author=user))
-    ).order_by("date")
+    ).order_by("-date").limit(START_BATCH)
+
+    # TODO: use flex-direction: column-reverse instead of reversing list
+    messages = list(messages)
+    messages.reverse()
     return await render_template("chat.html", messages=messages, user=current_user, to=name)
+
+
+# FETCH
+
+
+@app.get("/messages")
+async def get_messages():
+    last_id = int(request.args.get("id"))
+    name = request.args.get("name")
+
+    # GET MESSAGES < ID
+
+    user = current_user.data
+    to = await User.filter(name=name).first()
+    messages = await Message.filter(
+        Q(id__lt=last_id), Q(
+            (Q(recipient=user) & Q(author=to)) | (Q(recipient=to) & Q(author=user))
+        )
+    ).order_by("-date").limit(BATCH)
+    if messages:
+        cursor = messages[-1].id
+    else:
+        messages = []
+        cursor = 0
+    template = await render_template("batch.html", messages=messages, user=current_user)
+    return jsonify({"html": template, "cursor": cursor})
+
+
+# ERROR
 
 
 @app.errorhandler(Unauthorized)
 async def redirect_to_login(*_: Exception):
     return redirect("/?error=You are not logged in")
+
+
+@app.errorhandler(404)
+async def err_four(e):
+    return redirect("/?error=Page not found")
+
+
+@app.errorhandler(500)
+async def err_five(e):
+    return redirect("/?error=Something went wrong")
+
+
+# SOCKET
 
 
 async def _receive(c):
@@ -128,11 +174,12 @@ async def ws():
     try:
         task = asyncio.ensure_future(_receive(current_user))
         async for message in broker.subscribe():
-            if message.recipient.name == current_user.name:
+            if message.recipient.name == current_user.data.name:
                 await websocket.send(str(message.text))
     finally:
         task.cancel()
         await task
 
 
-app.run(debug=True)
+if __name__ == "__main__":
+    app.run(debug=True)

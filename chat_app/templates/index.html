@@ -7,7 +7,7 @@
 {% if user.is_authenticated %}
 <div>
     <h2>
-        Hello, {{ user.name }}
+        Hello, {{ user.data.name }}
     </h2>
 </div>
 {% if users %}
@@ -19,11 +19,11 @@
     {% for u in users %}
     <div class="flex-hor pad-10 gap-10 bor-5 rad-10">
         {{ u.name }}
-        <button class="btn bb pad-10 rad-10">
-            <a href="/chat/{{ u.name }}">
+        <a href="/chat/{{ u.name }}">
+            <button class="btn bb pad-10 rad-10">
                 CHAT
-            </a>
-        </button>
+            </button>
+        </a>
     </div>
     {% endfor %}
 </div>

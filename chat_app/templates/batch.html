@@ -1,0 +1,21 @@
+{% if messages %}
+{% for msg in messages %}
+    {% if msg.author.name == user.data.name %}
+    <div class="sent-container">
+        <div class="sent">
+            {{ msg.text }}
+        </div>
+    </div>
+    {% else %}
+    <div class="received-container">
+        <div class="received">
+            {{ msg.text }}
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+{% else %}
+<div style="width: 100%; text-align: center">
+    No more messages
+</div>
+{% endif %}
