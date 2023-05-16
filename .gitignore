@@ -1,5 +1,5 @@
 test.py
-chat_app/db.sqlite3
-chat_app/db.sqlite3-shm
-chat_app/db.sqlite3-wal
+db.sqlite3
+db.sqlite3-shm
+db.sqlite3-wal
 __pycache__
